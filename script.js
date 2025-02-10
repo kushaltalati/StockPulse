@@ -1,10 +1,10 @@
 let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+const apiKey = "HWzUSzbyJ5F4TBRMT1iRMBdYUfFCRAiJ";
 
 // myportfolim ma add karvanu function
 async function addToPortfolio() {
     const symbol = document.getElementById('portfolioSymbol').value.toUpperCase();
     const qty = parseInt(document.getElementById('portfolioQty').value);
-    const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
     
     if (!symbol || !qty) {
         alert("Please fill in both fields");
@@ -44,7 +44,6 @@ async function addToPortfolio() {
 }
 
 async function updatePortfolioDisplay() {
-    const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
     const portfolioItems = document.getElementById('portfolioItems');
     let totalValue = 0;
     
@@ -89,9 +88,8 @@ function removeFromPortfolio(index) {
 }
 
 async function fetchStockData() {
-    const symbol = document.getElementById('symbol').value;
+    const symbol = document.getElementById('symbol').value.toUpperCase();
     const interval = parseInt(document.getElementById('interval').value);
-    const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
     const url = `https://financialmodelingprep.com/api/v3/historical-price-full/${symbol}?apikey=${apiKey}`;
     const quoteUrl = `https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${apiKey}`;
 

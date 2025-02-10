@@ -1,33 +1,99 @@
+let portfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+
+// myportfolim ma add karvanu function
+async function addToPortfolio() {
+    const symbol = document.getElementById('portfolioSymbol').value.toUpperCase();
+    const qty = parseInt(document.getElementById('portfolioQty').value);
+    const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
+    
+    if (!symbol || !qty) {
+        alert("Please fill in both fields");
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${apiKey}`);
+        const data = await response.json();
+        
+        if (!data.length) {
+            alert("Invalid stock symbol");
+            return;
+        }
+
+        const stock = data[0];
+        const existingIndex = portfolio.findIndex(item => item.symbol === symbol);
+
+        if (existingIndex > -1) {
+            portfolio[existingIndex].qty += qty;
+        } else {
+            portfolio.push({
+                symbol: symbol,
+                qty: qty,
+                price: stock.price
+            });
+        }
+
+        localStorage.setItem('portfolio', JSON.stringify(portfolio));
+        updatePortfolioDisplay();
+        document.getElementById('portfolioSymbol').value = '';
+        document.getElementById('portfolioQty').value = '';
+    } catch (error) {
+        console.error("Error adding to portfolio:", error);
+        alert("Failed to add stock to portfolio");
+    }
+}
+
+async function updatePortfolioDisplay() {
+    const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
+    const portfolioItems = document.getElementById('portfolioItems');
+    let totalValue = 0;
+    
+    for (const item of portfolio) {
+        try {
+            const response = await fetch(`https://financialmodelingprep.com/api/v3/quote/${item.symbol}?apikey=${apiKey}`);
+            const data = await response.json();
+            if (data.length) {
+                item.price = data[0].price;
+            }
+        } catch (error) {
+            console.error("Error updating price:", error);
+        }
+    }
+
+    portfolioItems.innerHTML = '';
+    
+    portfolio.forEach((item, index) => {
+        const value = item.price * item.qty;
+        totalValue += value;
+        
+        const portfolioItem = document.createElement('div');
+        portfolioItem.className = 'portfolio-item';
+        portfolioItem.innerHTML = `
+            <span>${item.symbol}</span>
+            <span>$${item.price.toFixed(2)}</span>
+            <span>${item.qty}</span>
+            <span>$${value.toFixed(2)}</span>
+            <button class="remove-btn" onclick="removeFromPortfolio(${index})">×</button>
+        `;
+        portfolioItems.appendChild(portfolioItem);
+    });
+
+    document.getElementById('totalValue').textContent = `$${totalValue.toFixed(2)}`;
+    localStorage.setItem('portfolio', JSON.stringify(portfolio));
+}
+
+function removeFromPortfolio(index) {
+    portfolio.splice(index, 1);
+    localStorage.setItem('portfolio', JSON.stringify(portfolio));
+    updatePortfolioDisplay();
+}
+
 async function fetchStockData() {
     const symbol = document.getElementById('symbol').value;
     const interval = parseInt(document.getElementById('interval').value);
     const apiKey = "VzMLwmjYRgYDIogzqL5IcXIH7ZNizpbN";
     const url = `https://financialmodelingprep.com/api/v3/historical-price-full/${symbol}?apikey=${apiKey}`;
     const quoteUrl = `https://financialmodelingprep.com/api/v3/quote/${symbol}?apikey=${apiKey}`;
-
-    window.addEventListener('scroll', () => {
-        const sections = document.querySelectorAll('section');
-        const navLinks = document.querySelectorAll('.navbar-links li a');
-        const navbarHeight = document.querySelector('.navbar').offsetHeight;
-    
-        let currentSection = '';
-    
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop - navbarHeight;
-            const sectionHeight = section.clientHeight;
-    
-            if (window.scrollY >= sectionTop && window.scrollY < sectionTop + sectionHeight) {
-                currentSection = section.getAttribute('id');
-            }
-        });
-    
-        navLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${currentSection}`) {
-                link.classList.add('active');
-            }
-        });
-    });
 
     try {
         const [historyResponse, quoteResponse] = await Promise.all([
@@ -43,27 +109,40 @@ async function fetchStockData() {
             return;
         }
 
-        const dates = historyData.historical.slice(0, interval).map(entry => entry.date).reverse();
-        const prices = historyData.historical.slice(0, interval).map(entry => entry.close).reverse();
-        
+        // Toggle visibility
         document.getElementById('emptyChart').classList.add('hidden');
         document.getElementById('stockChart').classList.remove('hidden');
         document.getElementById('emptyDetails').classList.add('hidden');
         document.getElementById('stockInfo').classList.remove('hidden');
 
+        const dates = historyData.historical.slice(0, interval).map(entry => entry.date).reverse();
+        const prices = historyData.historical.slice(0, interval).map(entry => entry.close).reverse();
+        
         renderChart(dates, prices, symbol);
         renderStockDetails(quoteData[0]);
+        // window.scrollBy(0, 290);
+        let stockChart = document.querySelector('#scrollForGraph');
+        window.scrollBy(0, 10);
+        stockChart.scrollIntoView();
+        // setTimeout(() => {
+        //     window.scrollBy(0, 10)
+        // }, 100);
     } catch (error) {
         console.error("Error fetching data:", error);
         alert("Failed to fetch data");
+        document.getElementById('emptyChart').classList.remove('hidden');
+        document.getElementById('stockChart').classList.add('hidden');
     }
 }
 
 function renderChart(labels, data, symbol) {
     const ctx = document.getElementById('stockChart').getContext('2d');
+    
+    // pehla nu chart nikado
     if (window.stockChartInstance) {
         window.stockChartInstance.destroy();
     }
+
     window.stockChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -74,22 +153,27 @@ function renderChart(labels, data, symbol) {
                 borderColor: '#2962ff',
                 borderWidth: 2,
                 fill: false,
-                pointBackgroundColor: '#2962ff'
+                pointBackgroundColor: '#2962ff',
+                tension: 0.1
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     labels: {
-                        color: '#e6f1ff'
+                        color: '#e6f1ff',
+                        font: {
+                            size: 14
+                        }
                     }
                 }
             },
             scales: {
-                x: { 
-                    title: { 
-                        display: true, 
+                x: {
+                    title: {
+                        display: true,
                         text: 'Date',
                         color: '#e6f1ff'
                     },
@@ -97,12 +181,14 @@ function renderChart(labels, data, symbol) {
                         color: '#233554'
                     },
                     ticks: {
-                        color: '#e6f1ff'
+                        color: '#e6f1ff',
+                        maxRotation: 45,
+                        minRotation: 45
                     }
                 },
-                y: { 
-                    title: { 
-                        display: true, 
+                y: {
+                    title: {
+                        display: true,
                         text: 'Closing Price (USD)',
                         color: '#e6f1ff'
                     },
@@ -110,7 +196,10 @@ function renderChart(labels, data, symbol) {
                         color: '#233554'
                     },
                     ticks: {
-                        color: '#e6f1ff'
+                        color: '#e6f1ff',
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
                     }
                 }
             }
@@ -150,3 +239,29 @@ function renderStockDetails(quote) {
         </div>
     `;
 }
+
+// portfolio display update karva
+window.addEventListener('load', updatePortfolioDisplay);
+
+
+let addStock = document.querySelector('.myPortfolioAdd');
+addStock.addEventListener('click', ()=>{
+    addToPortfolio();
+});
+let entAddStock = document.querySelector('.portfolio-controls');
+entAddStock.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+        addToPortfolio();
+    }
+});
+
+let generateChart = document.querySelector('#generateChart');
+generateChart.addEventListener('click', ()=>{
+    fetchStockData();
+});
+let entGenerateChart = document.querySelector('.controls');
+entGenerateChart.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+        fetchStockData();
+    }
+});
